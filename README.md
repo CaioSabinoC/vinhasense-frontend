@@ -1,10 +1,25 @@
 # 🍇 VinhaSense — Front-end
 
-Interface web do **VinhaSense**, projeto de monitoramento IoT do solo para a **vitivinicultura do Vale do São Francisco**. O produtor acompanha umidade e temperatura do solo por safra, recebe alertas quando algo sai da faixa que ele mesmo definiu e gera relatórios do histórico.
+Interface web do **VinhaSense**, projeto de monitoramento IoT do solo para a **vitivinicultura do Vale do São Francisco**. O produtor acompanha umidade e temperatura do solo por talhão, recebe alertas quando algo sai da faixa que ele mesmo definiu e gera relatórios do histórico.
 
 🔗 **Demo:** https://dainty-kitsune-acfb3e.netlify.app
 
 > ⚠️ **Protótipo (v0.1):** esta versão usa **dados fictícios** (`src/data/mock.js`). A integração com o back-end e com os sensores ainda não foi feita.
+
+---
+
+## 📑 Sumário
+
+- [Sobre o projeto](#-sobre-o-projeto)
+- [Screenshots](#-screenshots)
+- [Funcionalidades](#-funcionalidades)
+- [Tecnologias](#️-tecnologias)
+- [Como rodar localmente](#-como-rodar-localmente)
+- [Deploy](#-deploy-netlify)
+- [Estrutura](#-estrutura)
+- [Próximos passos](#-próximos-passos)
+- [Equipe](#-equipe)
+- [Licença](#-licença)
 
 ---
 
@@ -16,18 +31,28 @@ Projeto Integrador (ADS-047) da Faculdade SENAC Recife. A solução completa tem
 ESP32-C3 + DHT11  →  ThingSpeak (MQTT)  →  Back-end Node.js/Express  →  Front-end React (este repo)
 ```
 
+## 📸 Screenshots
+
+| Dashboard | Talhões | Alertas |
+| --- | --- | --- |
+| ![Dashboard](docs/dashboard.png) | ![Talhões](docs/talhoes.png) | ![Alertas](docs/alertas.png) |
+
+| Relatórios | Ambiente e pragas |
+| --- | --- |
+| ![Relatórios](docs/relatorios.png) | ![Ambiente](docs/ambiente.png) |
+
 ## ✨ Funcionalidades
 
-| Tela | Rota | O que faz |
-| --- | --- | --- |
-| Login | `/login` | Acesso à propriedade (simulado) |
-| Dashboard | `/` | Visão geral da fazenda, previsão de colheita, gráfico por safra, mapa da propriedade e últimos alertas |
-| Safras | `/safras`, `/safras/:id` | Lista de safras com status; detalhe com variedade, porta-enxerto, histórico, sensores e anotações do produtor |
-| Sensores | `/sensores/:id`, `/sensores/novo` | Detalhe do dispositivo (bateria, sinal, calibração, últimas leituras) e cadastro de sensor em 3 passos |
-| Alertas | `/alertas` | Umidade/temperatura fora da faixa, bateria baixa, sensor offline e risco de praga (beta) |
-| Relatórios | `/relatorios` | Filtros por safra, período (24h/7d/30d) e variáveis; comparação com safra anterior; exporta **CSV** e **PDF** (impressão) |
-| Ambiente | `/ambiente` | Prévia da Fase 2 (ambiente e pragas) — *em breve* |
-| Configurações | `/configuracoes` | Limites de umidade/temperatura por safra, canais de notificação e **modo escuro** |
+| Tela | O que faz |
+| --- | --- |
+| Login | Acesso à propriedade (simulado) |
+| Dashboard | Visão geral da fazenda: umidade e temperatura médias do solo, sensores online, alertas abertos e gráfico por talhão (24h, 7d ou 30d) |
+| Talhões | Lista de talhões em cards ou lista, com status (Normal, Atenção, Crítico, Offline); detalhe com variedade, porta-enxerto, histórico, sensores e anotações do produtor |
+| Sensores | Detalhe do dispositivo (bateria, sinal, calibração, últimas leituras) e cadastro de sensor em 3 passos |
+| Alertas | Umidade/temperatura fora da faixa, bateria baixa, sensor offline e risco de praga (beta), com filtros e ações de **Anotar** e **Resolver** |
+| Relatórios | Filtros por talhão, período (24h/7d/30d) e variáveis; comparação com safra anterior; exporta **CSV** e **PDF** (impressão) |
+| Ambiente e pragas | Prévia da Fase 2 (radiação solar, precipitação, condutividade, vazão da irrigação e índice de risco de pragas) — *em breve* |
+| Configurações | Limites de umidade/temperatura, canais de notificação e **modo escuro** |
 
 **Destaques:** limites definidos pelo próprio produtor (não existem valores ideais universais), layout responsivo com navegação por abas no mobile e tema claro/escuro.
 
@@ -70,14 +95,21 @@ Como o app usa `HashRouter`, não é preciso configurar redirects para as rotas.
 ## 📁 Estrutura
 
 ```
-src/
-├── App.jsx            # Rotas e contexto dos limites
-├── main.jsx
-├── styles.css
-├── components/        # Layout, Charts, ui, Logo
-├── pages/             # Dashboard, Plots, PlotDetail, SensorDetail, AddSensor,
-│                      # Alerts, Reports, Environment, Settings, Login
-└── data/mock.js       # Dados fictícios (trocar por chamadas à API)
+front-end-vinhasense/
+├── docs/              # Screenshots usados no README
+├── src/
+│   ├── App.jsx        # Rotas e contexto dos limites
+│   ├── main.jsx
+│   ├── styles.css
+│   ├── components/    # Layout, Charts, ui, Logo
+│   ├── pages/         # Dashboard, Talhões, Sensores, Alertas, Relatórios,
+│   │                  # Ambiente, Configurações, Login
+│   └── data/mock.js   # Dados fictícios (trocar por chamadas à API)
+├── index.html
+├── package.json
+├── vite.config.js
+├── LICENSE
+└── README.md
 ```
 
 ## 🔌 Próximos passos
@@ -90,7 +122,7 @@ src/
 
 Estudantes de Análise e Desenvolvimento de Sistemas — SENAC Recife:
 
-- Arthur Vinícius 
+- Arthur Vinícius — Front-end e Segurança da Informação
 - Marcos Vinícius
 - Caio Sabino
 - Thauan Bezerra
