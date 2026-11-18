@@ -122,7 +122,7 @@ front-end-vinhasense/
 
 Estudantes de Análise e Desenvolvimento de Sistemas — SENAC Recife:
 
-- Arthur Vinícius — Front-end e Segurança da Informação
+- Arthur Vinícius 
 - Marcos Vinícius
 - Caio Sabino
 - Thauan Bezerra
