@@ -127,3 +127,13 @@ tbody tr.click{cursor:pointer} tbody tr.click:hover{background:var(--maroon-50)}
 .forecast-row .bar{height:8px;border-radius:5px;background:var(--border);overflow:hidden}
 .forecast-row .bar i{display:block;height:100%;background:var(--maroon-500);border-radius:5px}
 @media (max-width:760px){.forecast-row{grid-template-columns:1fr 1fr}.forecast-row .bar{grid-column:span 2;order:3}}
+
+/* Login 2 etapas */
+.otp{display:flex;gap:8px;justify-content:space-between}
+.otp-box{width:100%;min-width:0;padding:0;text-align:center;font-size:22px;font-weight:700;aspect-ratio:1/1.15;max-width:52px}
+.form-err{color:var(--red);background:var(--red-100);border-radius:10px;padding:8px 12px;font-size:13.5px;margin:0 0 12px}
+.link-btn{background:none;border:0;padding:6px 2px;min-height:36px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:13.5px;font-weight:600;color:var(--maroon-600)}
+[data-theme="dark"] .link-btn{color:var(--maroon-200)}
+.link-btn:disabled{color:var(--muted);cursor:default}
+.install-bar{position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:20;display:flex;align-items:center;gap:10px;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:10px 12px;max-width:460px;margin:0 auto}
+@media (min-width:761px){.install-bar{bottom:20px;left:auto;right:20px}}
