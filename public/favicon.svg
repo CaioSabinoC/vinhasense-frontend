@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- LOGO DE EXEMPLO: substitua este arquivo pela sua logo -->
+  <rect width="64" height="64" rx="16" fill="#8A2E4A"/>
+  <path d="M32 50V30" stroke="#fff" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <path d="M32 32c-9 0-14-5-14-13 9 0 14 5 14 13z" fill="#fff"/>
+  <path d="M32 28c0-8 5-13 14-13 0 8-5 13-14 13z" fill="#fff" opacity=".85"/>
+</svg>
