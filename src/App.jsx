@@ -11,6 +11,8 @@ import Settings from './pages/Settings.jsx'
 import Reports from './pages/Reports.jsx'
 import Environment from './pages/Environment.jsx'
 import AddSensor from './pages/AddSensor.jsx'
+import { AuthProvider, RequireAuth } from './auth.jsx'
+import InstallPrompt from './components/InstallPrompt.jsx'
 
 // Limites definidos pelo produtor (não existem valores ideais universais)
 const Ctx = createContext()
@@ -21,10 +23,11 @@ export default function App(){
   const [theme,setTheme] = useState('light')
   useEffect(()=>{document.documentElement.dataset.theme=theme},[theme])
   return (
+    <AuthProvider>
     <Ctx.Provider value={{th,setTh}}>
       <Routes>
         <Route path="/login" element={<Login/>}/>
-        <Route element={<Layout theme={theme} setTheme={setTheme}/>}>
+        <Route element={<RequireAuth><Layout theme={theme} setTheme={setTheme}/></RequireAuth>}>
           <Route path="/" element={<Dashboard/>}/>
           <Route path="/safras" element={<Plots/>}/>
           <Route path="/safras/:id" element={<PlotDetail/>}/>
@@ -37,6 +40,8 @@ export default function App(){
         </Route>
         <Route path="*" element={<Navigate to="/"/>}/>
       </Routes>
+      <InstallPrompt/>
     </Ctx.Provider>
+    </AuthProvider>
   )
 }
