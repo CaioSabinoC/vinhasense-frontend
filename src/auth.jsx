@@ -1,51 +1,48 @@
-import React, { createContext, useContext, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
+import { api, session, setUnauthorizedHandler, tokenExpiraEm } from './lib/api.js'
 
 /* ============================================================
-   AUTENTICAÇÃO (MOCK) — protótipo sem back-end
-   Etapa 1: e-mail + senha  |  Etapa 2: código de 6 dígitos
-   Para integrar a API real, troque verifyPassword / verifyCode.
+   AUTENTICAÇÃO REAL — back-end Parreiral (senha + OTP/TOTP)
+   1) POST /auth/login           -> token parcial (não acessa a API)
+   2) POST /auth/otp/verificar   -> token de acesso (60 min)
+   Primeiro acesso: /auth/registrar (ou login de conta sem OTP) devolve o QR Code;
+   /auth/otp/confirmar ativa o OTP e entrega os 10 códigos de recuperação.
    ============================================================ */
-export const DEMO_EMAIL = 'produtor@fazenda.com.br'
-export const DEMO_PASSWORD = '123456'
-export const DEMO_CODE = '123456'
-const KEY = 'vinhasense.session'
+export const authApi = {
+  registrar: (email, senha) => api('/auth/registrar', { method: 'POST', body: { email, senha }, token: null }),
+  login: (email, senha) => api('/auth/login', { method: 'POST', body: { email, senha }, token: null }),
+  confirmarOtp: (tokenParcial, codigo) => api('/auth/otp/confirmar', { method: 'POST', body: { codigo }, token: tokenParcial }),
+  verificarOtp: (tokenParcial, corpo) => api('/auth/otp/verificar', { method: 'POST', body: corpo, token: tokenParcial }),
+}
 
 const AuthCtx = createContext()
 export const useAuth = () => useContext(AuthCtx)
 
-const wait = ms => new Promise(r => setTimeout(r, ms))
+export function AuthProvider({ children }) {
+  const [auth, setAuth] = useState(() => {
+    const token = session.token()
+    return token ? { token, email: session.email() } : null
+  })
 
-// Etapa 1 — valida credenciais e "envia" o código
-export async function verifyPassword(email, password){
-  await wait(600)
-  if (email.trim().toLowerCase() !== DEMO_EMAIL || password !== DEMO_PASSWORD)
-    throw new Error('E-mail ou senha incorretos.')
-  return true
-}
-// Etapa 2 — valida o código
-export async function verifyCode(code){
-  await wait(500)
-  if (code !== DEMO_CODE) throw new Error('Código inválido. Tente novamente.')
-  return true
-}
-export async function resendCode(){ await wait(400); return true }
+  const signOut = useCallback(() => { session.clear(); setAuth(null) }, [])
+  const signIn = (token, email) => { session.save(token, email); setAuth({ token, email }) }
 
-const read = () => { try { return JSON.parse(localStorage.getItem(KEY)) } catch { return null } }
+  // Token vencido ou rejeitado pela API -> volta ao login
+  useEffect(() => { setUnauthorizedHandler(signOut) }, [signOut])
+  useEffect(() => {
+    if (!auth) return
+    const exp = tokenExpiraEm(auth.token)
+    if (!exp) return
+    const t = setTimeout(signOut, Math.max(0, exp - Date.now()))
+    return () => clearTimeout(t)
+  }, [auth, signOut])
 
-export function AuthProvider({ children }){
-  const [user, setUser] = useState(read)
-  const signIn = (email, remember = true) => {
-    const u = { email, at: Date.now() }
-    try { localStorage.setItem(KEY, JSON.stringify(u)) } catch {}
-    setUser(u)
-  }
-  const signOut = () => { try { localStorage.removeItem(KEY) } catch {}; setUser(null) }
-  return <AuthCtx.Provider value={{ user, signIn, signOut }}>{children}</AuthCtx.Provider>
+  return <AuthCtx.Provider value={{ user: auth, signIn, signOut }}>{children}</AuthCtx.Provider>
 }
 
-export function RequireAuth({ children }){
+export function RequireAuth({ children }) {
   const { user } = useAuth()
   const loc = useLocation()
-  return user ? children : <Navigate to="/login" replace state={{ from: loc.pathname }}/>
+  return user ? children : <Navigate to="/login" replace state={{ from: loc.pathname }} />
 }

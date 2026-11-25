@@ -24,33 +24,42 @@ O frontend do VinhaSense oferece uma interface para visualização dos dados col
 
 ## Funcionalidades
 
-- Dashboard com indicadores ambientais.
-- Visualização da umidade do solo.
-- Monitoramento da temperatura e umidade do ar.
-- Acompanhamento do estado do dispositivo ESP32-C3.
-- Cadastro e gerenciamento de safras.
-- Visualização individual das safras.
-- Previsão estimada de colheita.
-- Alertas baseados nas faixas configuradas.
-- Gráficos históricos das leituras.
-- Exportação de relatórios em CSV e impressão em PDF.
-- Configuração das faixas de alerta e aparência da interface.
+Todos os dados vêm do banco (MongoDB) por meio da API; não há dados fictícios no código.
+
+- Login real em 2 etapas (senha + código de app autenticador), criação de conta com QR Code e códigos de recuperação.
+- Cadastro de sensores (canal do ThingSpeak) com teste de conexão e status online/offline.
+- Cadastro e encerramento de safras; previsão de colheita calculada pelo servidor.
+- Dashboard com umidade do solo, temperatura e umidade do ar atuais e históricos (24h, 7d, 30d).
+- Alertas calculados em tempo real a partir das leituras e das faixas definidas pelo produtor.
+- Relatórios com exportação em CSV e impressão em PDF.
+
+> A temperatura exibida é a do sensor DHT11 (ar). O sistema não mede temperatura do solo.
+
+## Primeiro uso
+
+1. Crie sua conta e ative o app autenticador (guarde os códigos de recuperação).
+2. Em **Sensores**, cadastre o ID do canal do ThingSpeak do ESP32.
+3. Em **Safras**, crie a safra (variedade, área, data da poda, produtividade base).
+
+Sem sensor cadastrado, o painel fica vazio: cada usuário só enxerga os canais que cadastrou.
 
 ## Integração com o backend
 
-O frontend consome a API REST do VinhaSense utilizando `fetch()` e o caminho-base `/api`.
+O frontend consome a API REST usando `fetch()` com o caminho-base `/api` (configurável em `VITE_API_URL`). O token de acesso fica em `sessionStorage` e é enviado em `Authorization: Bearer`.
 
-Principais endpoints utilizados:
-
-| Método | Endpoint | Descrição |
+| Método | Endpoint | Uso |
 |---|---|---|
-| GET | `/api/leituras/ultima` | Consulta a última leitura |
-| GET | `/api/leituras` | Consulta o histórico de leituras |
-| GET | `/api/safras` | Lista as safras cadastradas |
-| POST | `/api/safras` | Cadastra uma nova safra |
-| GET | `/api/safras/previsao` | Consulta as previsões de colheita |
+| POST | `/api/auth/registrar`, `/auth/login` | Etapa 1 (senha) |
+| POST | `/api/auth/otp/confirmar`, `/auth/otp/verificar` | Etapa 2 (OTP / recuperação) |
+| GET/POST/PATCH | `/api/dispositivos` | Sensores |
+| GET | `/api/leituras/ultimas` | Última leitura de cada sensor |
+| GET | `/api/leituras/serie` | Série por hora/dia para gráficos |
+| GET | `/api/leituras` | Leituras brutas (últimas 50 do sensor) |
+| GET/POST | `/api/safras`, `/safras/painel` | Safras com previsão |
+| PATCH | `/api/safras/:id/encerrar` | Encerrar safra |
+| GET | `/api/safras/:id/previsao`, `/previsoes` | Registrar e listar previsões |
 
-Na infraestrutura de produção, o Nginx recebe as requisições e encaminha as chamadas iniciadas por `/api/` para o backend Node.js.
+O backend responde com e sem o prefixo `/api`, então o Nginx pode encaminhar `/api/` com ou sem remover o prefixo.
 
 ## Executando localmente
 
@@ -91,7 +100,7 @@ O Vite disponibilizará a aplicação, normalmente, em:
 http://localhost:5173
 ```
 
-**Observação:** para testar a integração com a API durante o desenvolvimento local, é necessário disponibilizar o backend no mesmo contexto de origem por meio de um proxy ou configuração equivalente. A configuração de desenvolvimento atual do Vite não define esse proxy.
+**Desenvolvimento local:** o Vite encaminha `/api` para `http://localhost:3000` (backend rodando). Para outro endereço: `VITE_PROXY_TARGET=http://host:porta npm run dev`.
 
 ## Build de produção
 
@@ -142,7 +151,7 @@ front-end-vinhasense/
 ├── src/
 │   ├── assets/
 │   ├── components/
-│   ├── data/
+│   ├── lib/
 │   ├── pages/
 │   ├── App.jsx
 │   ├── main.jsx

@@ -1,34 +1,42 @@
 import React, { useState } from 'react'
-import { Info } from 'lucide-react'
+import { Info, LogOut } from 'lucide-react'
 import { Header, Toggle } from '../components/ui.jsx'
-import { plots } from '../data/mock.js'
-import { useThresholds } from '../App.jsx'
+import { useThresholds, LIMITES_PADRAO } from '../settings.jsx'
+import { useAuth } from '../auth.jsx'
 
 export default function Settings({theme,setTheme}){
   const { th,setTh }=useThresholds()
-  const [plot,setPlot]=useState('t01')
-  const [ch,setCh]=useState({push:true,email:true,whats:false})
+  const { user, signOut } = useAuth()
+  const [draft,setDraft]=useState(()=>({...th}))
   const [saved,setSaved]=useState(false)
-  const set=(k,v)=>{setTh({...th,[k]:+v});setSaved(false)}
-  const Num=({k,l,u})=><div className="field"><label>{l} ({u})</label><input className="input" type="number" value={th[k]} onChange={e=>set(k,e.target.value)}/></div>
+  const [err,setErr]=useState('')
+  const set=(k,v)=>{setDraft({...draft,[k]:v});setSaved(false);setErr('')}
+  const salvar=()=>{
+    const n=Object.fromEntries(Object.entries(draft).map(([k,v])=>[k,Number(v)]))
+    if(Object.values(n).some(v=>!Number.isFinite(v))) return setErr('Preencha todos os limites com números.')
+    if(n.mMin>=n.mMax||n.tMin>=n.tMax) return setErr('O mínimo precisa ser menor que o máximo.')
+    setTh(n); setSaved(true)
+  }
+  const num=(k,l,u)=><div className="field" key={k}><label htmlFor={k}>{l} ({u})</label><input id={k} className="input" type="number" value={draft[k]} onChange={e=>set(k,e.target.value)}/></div>
   return (
     <>
-      <Header title="Configurações" sub="Limites, notificações e aparência"/>
+      <Header title="Configurações" sub="Limites de alerta, aparência e conta"/>
       <div className="grid g2 stack">
         <div className="card">
-          <h2 className="mb">Limites por safra</h2>
-          <div className="notice mb"><Info size={18} style={{flex:'none'}}/>Valores definidos por você — não existem limites ideais universais. Dependem de variedade, porta-enxerto, solo, manejo e fase da cultura.</div>
-          <div className="field"><label>Safra</label><select className="input" value={plot} onChange={e=>setPlot(e.target.value)}>{plots.map(p=><option key={p.id} value={p.id}>{p.name} — {p.variety}</option>)}</select></div>
-          <div className="grid g2"><Num k="mMin" l="Umidade mínima" u="%"/><Num k="mMax" l="Umidade máxima" u="%"/><Num k="tMin" l="Temp. mínima" u="°C"/><Num k="tMax" l="Temp. máxima" u="°C"/></div>
-          <button className="btn primary" onClick={()=>setSaved(true)}>Salvar limites</button>{saved&&<span className="chip ok" style={{marginLeft:10}}>Salvo</span>}
+          <h2 className="mb">Limites de alerta</h2>
+          <div className="notice mb"><Info size={18} style={{flex:'none'}}/>Valores definidos por você — não existem limites ideais universais. Dependem de variedade, porta-enxerto, solo, manejo e fase da cultura. Ficam salvos neste navegador.</div>
+          <div className="grid g2">{num("mMin","Umidade do solo mínima","%")}{num("mMax","Umidade do solo máxima","%")}{num("tMin","Temp. mínima","°C")}{num("tMax","Temp. máxima","°C")}</div>
+          {err&&<p className="form-err" role="alert">{err}</p>}
+          <div className="row wrap"><button className="btn primary" onClick={salvar}>Salvar limites</button>
+            <button className="btn" onClick={()=>{setDraft({...LIMITES_PADRAO});setSaved(false)}}>Restaurar padrão</button>
+            {saved&&<span className="chip ok">Salvo</span>}</div>
         </div>
         <div className="card">
-          <h2 className="mb">Notificações</h2>
-          {[['push','Notificação no app'],['email','E-mail'],['whats','WhatsApp']].map(([k,l])=>
-            <div className="list-item between" key={k} style={{alignItems:'center'}}><span>{l}</span><Toggle on={ch[k]} onChange={v=>setCh({...ch,[k]:v})} label={l}/></div>)}
-          <div className="grid g2 mt"><div className="field"><label>Silêncio de</label><input className="input" type="time" defaultValue="22:00"/></div><div className="field"><label>até</label><input className="input" type="time" defaultValue="05:00"/></div></div>
-          <h2 className="mb mt">Aparência</h2>
+          <h2 className="mb">Aparência</h2>
           <div className="list-item between" style={{alignItems:'center'}}><span>Modo escuro</span><Toggle on={theme==='dark'} onChange={v=>setTheme(v?'dark':'light')} label="Modo escuro"/></div>
+          <h2 className="mb mt">Conta</h2>
+          <p className="muted mb">Conectado como <b>{user?.email}</b></p>
+          <button className="btn" onClick={signOut}><LogOut size={16}/>Sair</button>
         </div>
       </div>
     </>

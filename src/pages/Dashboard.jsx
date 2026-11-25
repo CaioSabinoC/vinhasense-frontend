@@ -1,75 +1,114 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Droplets, Thermometer, Radio, BellRing, RefreshCw } from 'lucide-react'
-import { Header, Stat, Chip, Seg, fmt } from '../components/ui.jsx'
+import { Droplets, Thermometer, Radio, BellRing, RefreshCw, CloudSun } from 'lucide-react'
+import { Header, Stat, Seg, ErrorBanner } from '../components/ui.jsx'
 import { HistoryChart } from '../components/Charts.jsx'
-import { plots, sensors, alerts, seriesFor, plotById, totalForecastKg, fmtKg } from '../data/mock.js'
-import { useThresholds } from '../App.jsx'
+import { useData } from '../data.jsx'
+import { useSerie } from '../lib/hooks.js'
+import { useThresholds } from '../settings.jsx'
+import { fmt, fmtKg, fmtDate, timeAgo, deviceOnline, leituraDaSafra, statusDaSafra, derivarAlertas } from '../lib/derive.js'
+
+export function Onboarding({ semSensor, semSafra }) {
+  return (
+    <div className="card cta-card">
+      <h2>{semSensor ? 'Cadastre seu primeiro sensor' : 'Cadastre sua primeira safra'}</h2>
+      <p>{semSensor
+        ? 'Informe o canal do ThingSpeak do seu ESP32. As leituras que o servidor já recebe desse canal passam a aparecer aqui.'
+        : 'Com a safra cadastrada, o painel calcula a previsão de colheita a partir das leituras do seu sensor.'}</p>
+      <Link to={semSensor ? '/sensores/novo' : '/safras/nova'} className="btn primary">{semSensor ? 'Adicionar sensor' : 'Nova safra'}</Link>
+    </div>
+  )
+}
 
 export default function Dashboard(){
   const [range,setRange]=useState('24h')
+  const [pick,setPick]=useState('')
   const nav=useNavigate()
   const { th } = useThresholds()
-  const live=plots.filter(p=>p.moisture!=null)
-  const avgM=live.reduce((a,p)=>a+p.moisture,0)/live.length
-  const avgT=live.reduce((a,p)=>a+p.temp,0)/live.length
-  const online=sensors.filter(s=>s.status!=='off').length
-  const open=alerts.filter(a=>a.state==='aberto')
+  const { safras, dispositivos, ultimas, loading, error, syncedAt, reload } = useData()
+
+  const ativas = safras.filter(s=>s.status==='ativa')
+  const safraGraf = ativas.find(s=>s._id===pick) || ativas[0]
+  const { rows, loading: loadingSerie } = useSerie(safraGraf?.canalId || '', range)
+
+  const now = Date.now()
+  const calc = useMemo(()=>{
+    const online = dispositivos.filter(d=>deviceOnline(d, ultimas[d.canalId], now))
+    const leituras = online.map(d=>ultimas[d.canalId])
+    const media = k => { const v = leituras.map(l=>l[k]).filter(x=>x!=null); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null }
+    return { online: online.length, solo: media('umidadeSolo'), temp: media('temperatura'), ar: media('umidadeAr') }
+  },[dispositivos, ultimas]) // eslint-disable-line
+  const alertas = derivarAlertas(safras, dispositivos, ultimas, th)
+  const comPrevisao = ativas.filter(s=>s.previsao?.kgEstimado!=null)
+  const totalKg = comPrevisao.reduce((a,s)=>a+s.previsao.kgEstimado,0)
+  const maxKg = Math.max(1, ...comPrevisao.map(s=>s.previsao.kgEstimado))
+
+  if (loading) return <><Header title="Dashboard" sub="Carregando dados…"/><div className="card"><div className="skeleton" style={{height:120}}/></div></>
+
   return (
     <>
-      <Header title="Dashboard" sub="Fazenda Santa Clara — Lagoa Grande, PE">
-        <select className="input" style={{width:230}} aria-label="Propriedade"><option>Fazenda Santa Clara</option><option>Sítio Boa Vista — Casa Nova</option></select>
+      <Header title="Dashboard" sub={`${safras.length} safra(s) · ${dispositivos.length} sensor(es)`}>
+        {ativas.length>1&&<select className="input" style={{width:200}} aria-label="Safra do gráfico" value={safraGraf?._id||''} onChange={e=>setPick(e.target.value)}>{ativas.map(s=><option key={s._id} value={s._id}>{s.nome}</option>)}</select>}
         <Seg value={range} onChange={setRange} options={['24h','7d','30d']}/>
-        <span className="chip off"><RefreshCw size={13}/>Sincronizado há 2 min</span>
+        <button className="chip off" style={{border:0,cursor:'pointer'}} onClick={reload} title="Atualizar agora"><RefreshCw size={13}/>{syncedAt?`Sincronizado ${timeAgo(syncedAt).replace('agora há pouco','agora')}`:'Sincronizar'}</button>
       </Header>
+      <ErrorBanner error={error} onRetry={reload}/>
 
+      {dispositivos.length===0 && <Onboarding semSensor/>}
+      {dispositivos.length>0 && safras.length===0 && <Onboarding semSafra/>}
+
+      {dispositivos.length>0 && <>
       <div className="grid g4">
-        <Stat icon={Droplets} label="Umidade média do solo" value={fmt(avgM)} unit="%" note="média das safras online"/>
-        <Stat icon={Thermometer} label="Temperatura média do solo" value={fmt(avgT)} unit="°C" note="média das safras online"/>
-        <Stat icon={Radio} label="Sensores online" value={`${online}/${sensors.length}`} note={`${sensors.length-online} offline`}/>
-        <Stat icon={BellRing} label="Alertas abertos" value={open.length} note={`${open.filter(a=>a.level==='crit').length} críticos`}/>
+        <Stat icon={Droplets} label="Umidade média do solo" value={fmt(calc.solo)} unit={calc.solo!=null?'%':''} note="média dos sensores online"/>
+        <Stat icon={Thermometer} label="Temperatura média" value={fmt(calc.temp)} unit={calc.temp!=null?'°C':''} note={calc.ar!=null?`umidade do ar ${fmt(calc.ar)}%`:'média dos sensores online'}/>
+        <Stat icon={Radio} label="Sensores online" value={`${calc.online}/${dispositivos.length}`} note={`${dispositivos.length-calc.online} offline`}/>
+        <Stat icon={BellRing} label="Alertas abertos" value={alertas.length} note={`${alertas.filter(a=>a.level==='crit').length} críticos`}/>
       </div>
 
+      {safras.length>0 && <>
       <div className="card mt">
         <div className="row between mb wrap">
-          <div><h2>Previsão de colheita</h2><div className="sub">Estimativa de uvas a colher, por safra</div></div>
-          <div style={{textAlign:'right'}}><div className="muted" style={{fontSize:12.5}}>Total previsto</div><b style={{fontSize:30}}>{fmtKg(totalForecastKg())}</b> <span className="muted">kg</span></div>
+          <div><h2>Previsão de colheita</h2><div className="sub">Estimativa calculada pelo servidor a partir das leituras desde a poda</div></div>
+          <div style={{textAlign:'right'}}><div className="muted" style={{fontSize:12.5}}>Total previsto</div><b style={{fontSize:30}}>{fmtKg(totalKg)}</b> <span className="muted">kg</span></div>
         </div>
-        {plots.map(p=>(
-          <Link to={`/safras/${p.id}`} className="forecast-row" key={p.id}>
-            <div><b>{p.name}</b><div className="muted" style={{fontSize:13}}>{p.variety} · {fmt(p.areaHa)} ha</div></div>
-            <div className="bar" aria-hidden="true"><i style={{width:(p.forecastKg/Math.max(...plots.map(x=>x.forecastKg))*100)+'%'}}/></div>
-            <div style={{textAlign:'right'}}><b>{fmtKg(p.forecastKg)} kg</b><div className="muted" style={{fontSize:13}}>colheita ~ {new Date(p.harvestDate).toLocaleDateString('pt-BR')} · confiança {p.confidence.toLowerCase()}</div></div>
-          </Link>))}
-        <div className="muted" style={{fontSize:12.5,marginTop:10}}>Dados de exemplo (área × produtividade esperada).</div>
+        {ativas.length===0 && <div className="empty">Nenhuma safra ativa.</div>}
+        {ativas.map(s=>{ const p=s.previsao; return (
+          <Link to={`/safras/${s._id}`} className="forecast-row" key={s._id}>
+            <div><b>{s.nome}</b><div className="muted" style={{fontSize:13}}>{s.variedade} · {fmt(s.areaHa,2)} ha</div></div>
+            <div className="bar" aria-hidden="true"><i style={{width:p?.kgEstimado!=null?(p.kgEstimado/maxKg*100)+'%':'0%'}}/></div>
+            {p?.kgEstimado!=null
+              ? <div style={{textAlign:'right'}}><b>{fmtKg(p.kgEstimado)} kg</b><div className="muted" style={{fontSize:13}}>{p.dataColheitaPrevista?`colheita ~ ${fmtDate(p.dataColheitaPrevista)} · `:''}confiabilidade {p.confiabilidade}</div></div>
+              : <div style={{textAlign:'right'}} className="muted">{s.previsaoErro||'Sem previsão'}</div>}
+          </Link>)})}
       </div>
 
       <div className="grid g-main mt">
         <div className="card">
-          <div className="row between mb"><h2>Umidade e temperatura — Safra 01</h2><Link to="/safras/t01" className="btn sm">Ver safra</Link></div>
-          <HistoryChart data={seriesFor('t01',range)} th={th}/>
+          <div className="row between mb"><h2>Histórico{safraGraf?` — ${safraGraf.nome}`:''}</h2>{safraGraf&&<Link to={`/safras/${safraGraf._id}`} className="btn sm">Ver safra</Link>}</div>
+          {loadingSerie?<div className="skeleton" style={{height:240}}/>:<HistoryChart data={rows} th={th}/>}
         </div>
         <div className="card">
-          <h2 className="mb">Mapa da propriedade</h2>
-          <div className="map" aria-label="Esquema das safras">
-            {plots.map(p=>(
-              <div key={p.id} className={`plot-tile ${p.status}`} onClick={()=>nav(`/safras/${p.id}`)} role="link" tabIndex={0}>
-                <span>{p.name}</span><b>{p.moisture!=null?fmt(p.moisture)+'%':'offline'}</b><span style={{opacity:.9}}>{p.variety}</span>
-              </div>))}
+          <h2 className="mb">Safras agora</h2>
+          <div className="map" aria-label="Situação das safras">
+            {safras.map(s=>{ const l=leituraDaSafra(s,dispositivos,ultimas); const st=statusDaSafra(s,dispositivos,ultimas,th); return (
+              <div key={s._id} className={`plot-tile ${st}`} onClick={()=>nav(`/safras/${s._id}`)} role="link" tabIndex={0} onKeyDown={e=>e.key==='Enter'&&nav(`/safras/${s._id}`)}>
+                <span>{s.nome}</span><b>{st==='off'?'offline':fmt(l?.umidadeSolo)+'%'}</b><span style={{opacity:.9}}>{s.variedade}</span>
+              </div>)})}
           </div>
           <div className="legend"><span><i className="dot ok"/>Normal</span><span><i className="dot warn"/>Atenção</span><span><i className="dot crit"/>Crítico</span><span><i className="dot off"/>Offline</span></div>
         </div>
-      </div>
+      </div></>}
 
       <div className="card mt">
         <div className="row between"><h2>Últimos alertas</h2><Link to="/alertas" className="btn sm">Ver todos</Link></div>
-        {open.slice(0,4).map(a=>(
+        {alertas.length===0 && <div className="empty">Tudo dentro das faixas que você definiu. 🍇</div>}
+        {alertas.slice(0,4).map(a=>(
           <div className="list-item" key={a.id}>
-            <i className={`dot ${a.level==='beta'?'warn':a.level}`}/>
-            <div style={{flex:1}}><b>{a.type}</b> <span className="muted">· {plotById(a.plot).name}</span><div className="muted" style={{fontSize:13.5}}>{a.msg}</div></div>
-            <span className="muted" style={{fontSize:13,whiteSpace:'nowrap'}}>{a.when}</span>
+            <i className={`dot ${a.level}`}/>
+            <div style={{flex:1}}><b>{a.type}</b>{a.safra&&<span className="muted"> · {a.safra}</span>}<div className="muted" style={{fontSize:13.5}}>{a.msg}</div></div>
+            <span className="muted" style={{fontSize:13,whiteSpace:'nowrap'}}>{a.quando?timeAgo(a.quando):''}</span>
           </div>))}
-      </div>
+      </div></>}
     </>
   )
 }
