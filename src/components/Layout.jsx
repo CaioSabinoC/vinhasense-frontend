@@ -1,12 +1,13 @@
 import React from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
-import { LayoutDashboard, Grape, Bell, FileBarChart, CloudSun, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, Grape, Radio, Bell, FileBarChart, Settings, LogOut } from 'lucide-react'
 import Logo from './Logo.jsx'
 import { useAuth } from '../auth.jsx'
+import { DataProvider } from '../data.jsx'
 
 const items=[
-  ['/','Dashboard',LayoutDashboard],['/safras','Safras',Grape],['/alertas','Alertas',Bell],
-  ['/relatorios','Relatórios',FileBarChart],['/ambiente','Ambiente',CloudSun],['/configuracoes','Configurações',Settings]]
+  ['/','Dashboard',LayoutDashboard],['/safras','Safras',Grape],['/sensores','Sensores',Radio],['/alertas','Alertas',Bell],
+  ['/relatorios','Relatórios',FileBarChart],['/configuracoes','Configurações',Settings]]
 
 export default function Layout(){
   const { user, signOut } = useAuth()
@@ -20,9 +21,9 @@ export default function Layout(){
         </nav>
         <div className="foot">
           <button className="link-btn" style={{color:'#E8C9D2',marginBottom:8}} onClick={signOut}><LogOut size={15}/> Sair</button><br/>
-          <span style={{opacity:.8}}>{user?.email}</span><br/>Vale do São Francisco<br/>v0.1 — protótipo</div>
+          <span style={{opacity:.8}}>{user?.email}</span><br/>Vale do São Francisco</div>
       </aside>
-      <main className="main"><Outlet/></main>
+      <main className="main"><DataProvider><Outlet/></DataProvider></main>
       <nav className="tabs-mobile" aria-label="Principal móvel">
         {items.slice(0,5).map(([to,label,Icon])=>(
           <NavLink key={to} to={to} end={to==='/'} className={({isActive})=>isActive?'active':''}><Icon size={20}/>{label}</NavLink>))}

@@ -2,40 +2,43 @@ import React, { useState } from 'react'
 import { Download, FileText } from 'lucide-react'
 import { Header, Seg } from '../components/ui.jsx'
 import { HistoryChart } from '../components/Charts.jsx'
-import { plots, seriesFor } from '../data/mock.js'
+import { useData } from '../data.jsx'
+import { useSerie } from '../lib/hooks.js'
+import { fmt } from '../lib/derive.js'
 
 export default function Reports(){
-  const [plot,setPlot]=useState('t01')
+  const { safras } = useData()
+  const [plot,setPlot]=useState('')   // '' = todos os meus sensores
   const [range,setRange]=useState('30d')
-  const [vars,setVars]=useState({moisture:true,temp:true})
-  const [cmp,setCmp]=useState(false)
-  const data=seriesFor(plot,range)
+  const [vars,setVars]=useState({moisture:true,temp:true,air:true})
+  const s=safras.find(x=>x._id===plot)
+  const { rows, loading } = useSerie(s?.canalId||'',range)
   const csv=()=>{
-    const rows=['periodo;umidade_pct;temp_c',...data.map(d=>`${d.t};${d.moisture};${d.temp}`)].join('\n')
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows],{type:'text/csv'}));a.download=`vinhasense_${plot}_${range}.csv`;a.click()
+    const linhas=['data_hora;umidade_solo_pct;temperatura_c;umidade_ar_pct',...rows.map(d=>[new Date(d.ts).toISOString(),d.moisture??'',d.temp??'',d.air??''].join(';'))].join('\n')
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([linhas],{type:'text/csv'}));a.download=`vinhasense_${(s?.nome||'todos').replace(/\W+/g,'_')}_${range}.csv`;a.click()
   }
   return (
     <>
-      <Header title="Relatórios" sub="Escolha safra, período e variáveis">
-        <button className="btn" onClick={csv}><Download size={17}/>CSV</button>
+      <Header title="Relatórios" sub="Médias por hora (24h e 7d) ou por dia (30d), direto do banco de leituras">
+        <button className="btn" onClick={csv} disabled={!rows.length}><Download size={17}/>CSV</button>
         <button className="btn primary" onClick={()=>window.print()}><FileText size={17}/>PDF</button>
       </Header>
       <div className="card row wrap mb" style={{gap:18}}>
-        <select className="input" style={{width:220}} value={plot} onChange={e=>setPlot(e.target.value)} aria-label="Safra">{plots.map(p=><option key={p.id} value={p.id}>{p.name} — {p.variety}</option>)}</select>
+        <select className="input" style={{width:240}} value={plot} onChange={e=>setPlot(e.target.value)} aria-label="Safra">
+          <option value="">Todos os meus sensores</option>
+          {safras.map(p=><option key={p._id} value={p._id}>{p.nome} — {p.variedade}</option>)}</select>
         <Seg value={range} onChange={setRange} options={['24h','7d','30d']}/>
-        <label className="row"><input type="checkbox" checked={vars.moisture} onChange={e=>setVars({...vars,moisture:e.target.checked})}/>Umidade</label>
+        <label className="row"><input type="checkbox" checked={vars.moisture} onChange={e=>setVars({...vars,moisture:e.target.checked})}/>Umidade do solo</label>
         <label className="row"><input type="checkbox" checked={vars.temp} onChange={e=>setVars({...vars,temp:e.target.checked})}/>Temperatura</label>
-        <label className="row"><input type="checkbox" checked={cmp} onChange={e=>setCmp(e.target.checked)}/>Comparar com safra anterior</label>
+        <label className="row"><input type="checkbox" checked={vars.air} onChange={e=>setVars({...vars,air:e.target.checked})}/>Umidade do ar</label>
       </div>
-      <div className="card"><HistoryChart data={data} height={320}/></div>
-      {cmp&&<div className="card mt"><h2 className="mb">Safra atual × safra anterior</h2>
-        <table><thead><tr><th>Indicador</th><th>Safra atual</th><th>Safra anterior</th><th>Variação</th></tr></thead><tbody>
-          <tr><td>Umidade média</td><td>26,4%</td><td>24,9%</td><td>+1,5 p.p.</td></tr>
-          <tr><td>Temp. média do solo</td><td>31,0 °C</td><td>30,2 °C</td><td>+0,8 °C</td></tr>
-          <tr><td>Horas fora da faixa</td><td>38 h</td><td>61 h</td><td>−23 h</td></tr></tbody></table></div>}
+      <div className="card">{loading?<div className="skeleton" style={{height:300}}/>:<HistoryChart data={rows} show={vars} height={320}/>}</div>
       <div className="card mt table-wrap"><h2 className="mb">Prévia dos dados</h2>
-        <table><thead><tr><th>Período</th>{vars.moisture&&<th>Umidade (%)</th>}{vars.temp&&<th>Temp. (°C)</th>}</tr></thead>
-          <tbody>{data.slice(0,8).map((d,i)=><tr key={i}><td>{d.t}</td>{vars.moisture&&<td>{d.moisture}</td>}{vars.temp&&<td>{d.temp}</td>}</tr>)}</tbody></table></div>
+        {rows.length===0?<div className="empty">Sem leituras neste período.</div>:
+        <table><thead><tr><th>Período</th>{vars.moisture&&<th>Umidade solo (%)</th>}{vars.temp&&<th>Temp. (°C)</th>}{vars.air&&<th>Umidade ar (%)</th>}</tr></thead>
+          <tbody>{rows.slice(-8).reverse().map((d,i)=><tr key={i}><td>{d.t}</td>{vars.moisture&&<td>{fmt(d.moisture)}</td>}{vars.temp&&<td>{fmt(d.temp)}</td>}{vars.air&&<td>{fmt(d.air)}</td>}</tr>)}</tbody></table>}
+        {rows.length>8&&<div className="muted" style={{fontSize:12.5,marginTop:8}}>Mostrando os 8 períodos mais recentes de {rows.length}. O CSV traz todos.</div>}
+      </div>
     </>
   )
 }

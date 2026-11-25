@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  // Em desenvolvimento, /api vai para o back-end local (o back responde com e sem o prefixo /api).
+  // Outro endereço: VITE_PROXY_TARGET=http://host:porta npm run dev
+  server: { proxy: { '/api': process.env.VITE_PROXY_TARGET || 'http://localhost:3000' } },
   plugins: [
     react(),
     VitePWA({
@@ -11,7 +14,7 @@ export default defineConfig({
       manifest: {
         name: 'VinhaSense',
         short_name: 'VinhaSense',
-        description: 'Monitoramento de umidade e temperatura do solo para vinhedos.',
+        description: 'Monitoramento de umidade do solo, temperatura e umidade do ar para vinhedos.',
         lang: 'pt-BR',
         start_url: '/#/',
         scope: '/',
